@@ -1,0 +1,173 @@
+<html>
+    <head>
+        <script type="text/javascript" >
+            function makeDraggable(evt) {
+                var svg = evt.target;
+                svg.addEventListener('mousedown', startDrag);
+                svg.addEventListener('mousemove', drag);
+                svg.addEventListener('mouseup', endDrag);
+                svg.addEventListener('mouseleave', endDrag);
+                
+                var selectedElement = false;
+                function startDrag(evt) {
+                    if (evt.target.classList.contains('draggable')) {selectedElement = evt.target;}
+                }
+                function getMousePosition(evt) {
+                    var CTM = svg.getScreenCTM();
+                    return {
+                        x: (evt.clientX - CTM.e) / CTM.a,
+                        y: (evt.clientY - CTM.f) / CTM.d
+                    };
+                }
+                function drag(evt) {
+                    if (selectedElement) {
+                        evt.preventDefault();
+                        var coord = getMousePosition(evt);
+                        selectedElement.setAttributeNS(null, "cx", coord.x);
+                        selectedElement.setAttributeNS(null, "cy", coord.y);
+                    }
+                }
+                function endDrag(evt) { 
+                    selectedElement = null;
+                    initialCoords();
+                    refreshAngle();
+                }
+                console.log("end of MakeDraggable");
+              }
+        </script>
+    </head>
+    <svg width="808" height="1003" viewPort="0 0 808 1003" baseProfile="full"
+    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+    onload="makeDraggable(evt);initialCoords()">  
+    <image id="helmet" href="helmet.png" height="703" width="608" transform="translate(200 300)" />     
+    <image id="faceplate" href="faceplate.png" height="703" width="608" transform="translate(200 300) rotate(0,0,0)"/>   
+    <circle  id="c1tmp" cx="340" cy="685" r="5" stroke="black" fill-opacity="0"/>
+    <circle  id="c3tmp" cx="520" cy="340" r="5" stroke="black" fill-opacity="0"/>
+    <g color="blue">
+    <circle class="draggable" id="c0" cx="398" cy="553" r="5" fill="currentColor"/>
+    <circle id="c1" cx="340" cy="685" r="5" fill="currentColor"/>
+    </g>
+    <g color="green">
+        <circle id="c2" cx="360" cy="420" r="5" fill="currentColor"/>
+        <circle class="draggable" id="c3" cx="520" cy="340" r="5" fill="currentColor"/>
+    </g>
+    <circle class="draggable" id="c1init" cx="340" cy="685" r="5" stroke="blue"  fill-opacity="0"/>
+    <circle class="draggable" id="c2init" cx="360" cy="420" r="5" stroke="green" fill-opacity="0"/>
+    
+  </svg>
+  <div class="slidecontainer">
+    <input type="range" min="0" max="180" value="0" old="0" class="slider" id="rotSlider">
+    <div id="demo">0</div>
+  </div>
+  <div style="float: left;">Low hinge dist:</div>
+  <div id="lowHinge" style="margin-left: 200px;">20</div>
+  <div style="float: left;">High hinge dist:</div>
+  <div id="highHinge" style="margin-left: 200px;">20</div>
+  <script> 
+
+    // Returns angle C using law of cosines
+    function solveAngle(a, b, c) {
+        var temp = (a * a + b * b - c * c) / (2 * a * b);
+        if (-0.999 <= temp && temp <= 0.999)
+            return Math.acos(temp);
+        else if (Math.abs(temp) <= 1)  {// Explained in https://www.nayuki.io/page/numerically-stable-law-of-cosines 
+            console.log("**");
+            //return Math.sqrt((c * c - (a - b) * (a - b)) / (a * b));
+            return 2*Math.asin(Math.sqrt((c*c-(a-b)*(a-b))/(4*a*b)));
+            
+        } else
+            throw "No solution";
+    }
+    function  dist(p1,p2) { let dx = p1.x-p2.x, dy=p1.y-p2.y; return Math.sqrt(dx*dx+dy*dy);}
+  
+    var rangeslider = document.getElementById("rotSlider"); 
+    var output = document.getElementById("demo"); 
+    output.innerHTML = rangeslider.value; 
+    var pts,pt1,pt2,c1tmp,c3tmp;
+    var coord=new Array(4).fill(null).map(()=> ({x:0,y:0}));
+    var d01=0.0,d23=0.0,d12=0.0,d03=0.0;
+    var a12Init,a01;
+    var pt1Init;
+    function initialCoords() {
+        let dx,dy;
+        pts= [  document.getElementById("c0"),
+                document.getElementById("c1init"),
+                document.getElementById("c2init"),
+                document.getElementById("c3")];
+        pt1 = document.getElementById("c1");
+        pt2 = document.getElementById("c2");
+        c1tmp=document.getElementById("c1tmp");
+        c3tmp=document.getElementById("c3tmp");
+        for (i = 0; i < pts.length; ++i) { 
+          coord[i].x=pts[i].cx.baseVal.value;
+          coord[i].y=pts[i].cy.baseVal.value;
+          console.log("=>"+i+": x="+coord[i].x+", y="+coord[i].y);
+        }
+        pt1Init={ x: coord[1].x,y:coord[1].y};
+        dx = coord[1].x -coord[0].x;
+        dy = coord[1].y -coord[0].y;
+        d01=Math.sqrt(dx*dx+dy*dy);
+        a01=Math.atan2(dy,dx);
+        dx = coord[2].x -coord[3].x;
+        dy = coord[2].y -coord[3].y;
+        d23=Math.sqrt(dx*dx+dy*dy);
+        dx = coord[2].x -coord[1].x;
+        dy = coord[2].y -coord[1].y;
+        d12=Math.sqrt(dx*dx+dy*dy);
+        c1tmp.setAttributeNS(null,'r',d12);
+        a12Init=Math.atan2(dy,dx);
+        dx = coord[0].x -coord[3].x;
+        dy = coord[0].y -coord[3].y;
+        d03=Math.sqrt(dx*dx+dy*dy);
+        c3tmp.setAttributeNS(null,'cx',coord[3].x);
+        c3tmp.setAttributeNS(null,'cy',coord[3].y);
+        c3tmp.setAttributeNS(null,'r',d23);
+        document.getElementById("lowHinge").innerHTML=Math.round(d01*880./210.)/10+" mm";
+        document.getElementById("highHinge").innerHTML=Math.round(d23*880./210.)/10+" mm";
+    }
+   
+    function refreshAngle() { 
+      
+      let old=this.old;
+      let angle= a01+Math.PI*rangeslider.value/180.0;
+      console.log("Angle="+angle);
+      coord[1].x= coord[0].x+d01*Math.cos(angle);
+      coord[1].y= coord[0].y+d01*Math.sin(angle);
+      let x13=coord[1].x-coord[3].x;
+      let y13=coord[1].y-coord[3].y;
+      
+      let d13= Math.sqrt( x13*x13+y13*y13);
+      let a;
+      try {
+        a = solveAngle(d13,d23,d12);
+      } catch(e) {
+          console.log(e);
+          this.value=old;
+          output.innerHTML = this.value;
+          return;
+      } 
+
+      pt1.setAttributeNS(null, 'cx',  coord[1].x);
+      pt1.setAttributeNS(null, 'cy',  coord[1].y);
+      c1tmp.setAttributeNS(null, 'cx',  coord[1].x);
+      c1tmp.setAttributeNS(null, 'cy',  coord[1].y);
+      let a13= Math.atan2(y13,x13);
+      
+      console.log(d13 +" "+d23+" "+d12+" "+( (d13*d13) + (d23*d23) - (d12*d12)) / (2*d13*d23)+" "+a +" "+a13);
+      let c2p={ x: coord[3].x+d23*Math.cos(a13+a),y:coord[3].y+d23*Math.sin(a13+a)};
+      let c2m={ x: coord[3].x+d23*Math.cos(a13-a),y:coord[3].y+d23*Math.sin(a13-a)};
+            coord[2]=c2p;
+      let a12 = Math.atan2(coord[2].y -coord[1].y,coord[2].x -coord[1].x); 
+      pt2.setAttributeNS(null, 'cx',  coord[2].x);
+      pt2.setAttributeNS(null, 'cy',  coord[2].y);
+      tr=document.getElementById("faceplate").transform.baseVal;
+      console.log("angles "+a12*180/Math.PI+"-"+a12Init*180/Math.PI);
+      tr.getItem(1).setRotate((a12-a12Init)*180/Math.PI,pt1Init.x-200,pt1Init.y-300);
+      tr.getItem(0).setTranslate(coord[1].x-pt1Init.x+200,coord[1].y-pt1Init.y+300); 
+      this.old=this.value;
+      if(typeof(this.value) != "undefined") output.innerHTML = this.value;
+    }    
+    rangeslider.oninput = refreshAngle;
+
+    </script> 
+</html>
